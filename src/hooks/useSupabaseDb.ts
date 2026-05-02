@@ -223,7 +223,7 @@ export function useSupabaseDb() {
       const firstError = actorsRes.error ?? eventsRes.error ?? countriesRes.error;
       if (firstError) {
         setError(firstError.message);
-        return;
+        throw firstError;
       }
 
       setDbState(next);

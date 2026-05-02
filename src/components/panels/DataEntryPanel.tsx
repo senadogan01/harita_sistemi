@@ -56,6 +56,7 @@ export function DataEntryPanel({
   const [picked, setPicked] = useState<{ lng: number; lat: number; label?: string } | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const existingActorIds = useMemo(() => new Set(db.actors.map((a) => a.id)), [db.actors]);
@@ -161,18 +162,25 @@ export function DataEntryPanel({
       events: [...db.events, ev],
     };
 
-    onChangeDb(next);
-    onFlyTo?.(coords.lng, coords.lat);
+    setIsSaving(true);
+    try {
+      await onChangeDb(next);
+      onFlyTo?.(coords.lng, coords.lat);
 
-    setOpen(false);
-    setFileName("");
-    setPlaceQuery("");
-    setDate("");
-    setPeopleRaw("");
-    setOrgsRaw("");
-    setEventText("");
-    setPicked(null);
-    setGeoError(null);
+      setOpen(false);
+      setFileName("");
+      setPlaceQuery("");
+      setDate("");
+      setPeopleRaw("");
+      setOrgsRaw("");
+      setEventText("");
+      setPicked(null);
+      setGeoError(null);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Dosya kaydedilemedi");
+    } finally {
+      setIsSaving(false);
+    }
   }, [db, date, eventText, existingActorIds, existingEventIds, fileName, onChangeDb, onFlyTo, orgsRaw, peopleRaw, resolvePlaceToCoords]);
 
   return (
@@ -340,10 +348,11 @@ export function DataEntryPanel({
               <button
                 type="button"
                 onClick={onSave}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-500/20 px-3 py-2 text-xs text-emerald-50 hover:bg-emerald-500/25"
+                disabled={isSaving}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-500/20 px-3 py-2 text-xs text-emerald-50 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Save className="h-4 w-4" />
-                Kaydet
+                {isSaving ? "Kaydediliyor..." : "Kaydet"}
               </button>
             </div>
           </div>
