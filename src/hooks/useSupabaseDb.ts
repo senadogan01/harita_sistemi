@@ -4,7 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { db as defaultDb, type DbActor, type DbCountry, type DbEvent, type DbRegion } from "@/data/database";
 import { supabase } from "@/lib/supabase";
-import type { LocalDb } from "@/hooks/useLocalDb";
+
+export type LocalDb = {
+  regions: DbRegion[];
+  countries: DbCountry[];
+  actors: DbActor[];
+  events: DbEvent[];
+};
 
 type ActorRow = {
   id: string;
@@ -214,21 +220,22 @@ export function useSupabaseDb() {
       const nextEvents = next.events.map((event) => eventToRow(event, user.id));
       const nextCountries = next.countries.map((country) => countryToRow(country, user.id));
 
-      const [actorsRes, eventsRes, countriesRes] = await Promise.all([
-        supabase.from("actors").upsert(nextActors, { onConflict: "id,user_id" }),
-        supabase.from("events").upsert(nextEvents, { onConflict: "id,user_id" }),
-        supabase.from("countries").upsert(nextCountries, { onConflict: "id,user_id" }),
+      const results = await Promise.all([
+        nextActors.length > 0 ? supabase.from("actors").upsert(nextActors, { onConflict: "id,user_id" }) : Promise.resolve({ error: null }),
+        nextEvents.length > 0 ? supabase.from("events").upsert(nextEvents, { onConflict: "id,user_id" }) : Promise.resolve({ error: null }),
+        nextCountries.length > 0 ? supabase.from("countries").upsert(nextCountries, { onConflict: "id,user_id" }) : Promise.resolve({ error: null }),
       ]);
 
-      const firstError = actorsRes.error ?? eventsRes.error ?? countriesRes.error;
+      const firstError = results.find((result) => result.error)?.error;
       if (firstError) {
         setError(firstError.message);
         throw firstError;
       }
 
       setDbState(next);
+      void loadDb();
     },
-    [user],
+    [loadDb, user],
   );
 
   const signOut = useCallback(async () => {

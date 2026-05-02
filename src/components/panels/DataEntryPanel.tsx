@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { FilePlus2, MapPin, Save, X } from "lucide-react";
-import type { LocalDb } from "@/hooks/useLocalDb";
+import type { LocalDb } from "@/hooks/useSupabaseDb";
 import type { DbActor, DbActorType, DbEvent } from "@/data/database";
 
 function toId(input: string): string {
