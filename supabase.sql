@@ -45,6 +45,11 @@ alter table public.countries enable row level security;
 alter table public.actors enable row level security;
 alter table public.events enable row level security;
 
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.countries to authenticated;
+grant select, insert, update, delete on public.actors to authenticated;
+grant select, insert, update, delete on public.events to authenticated;
+
 drop policy if exists "Users can select own countries" on public.countries;
 drop policy if exists "Users can insert own countries" on public.countries;
 drop policy if exists "Users can update own countries" on public.countries;
