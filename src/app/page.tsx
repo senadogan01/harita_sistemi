@@ -510,7 +510,7 @@ out body ${limit};`;
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-black">
-      <div className="pointer-events-auto absolute right-4 top-4 z-30 flex max-w-[360px] items-center gap-3 rounded-2xl border border-white/10 bg-black/55 px-4 py-2 text-xs text-white/75 backdrop-blur-xl">
+      <div className="pointer-events-auto absolute bottom-4 left-[calc(50%+466px)] z-30 flex max-w-[360px] items-center gap-3 rounded-2xl border border-white/10 bg-black/55 px-4 py-2 text-xs text-white/75 backdrop-blur-xl">
         <span className="max-w-[220px] truncate">{user.email}</span>
         {error ? <span className="max-w-[260px] truncate text-rose-200">{error}</span> : null}
         <button type="button" onClick={signOut} className="rounded-xl bg-white/10 px-3 py-1.5 text-white/80 hover:bg-white/15">

@@ -59,9 +59,6 @@ export function DataEntryPanel({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const existingActorIds = useMemo(() => new Set(db.actors.map((a) => a.id)), [db.actors]);
-  const existingEventIds = useMemo(() => new Set(db.events.map((e) => e.id)), [db.events]);
-
   const selectedEvent = useMemo(() => db.events.find((e) => e.id === selectedEventId) ?? null, [db.events, selectedEventId]);
   const selectedActor = useMemo(() => db.actors.find((a) => a.id === selectedActorId) ?? null, [db.actors, selectedActorId]);
 
@@ -70,6 +67,34 @@ export function DataEntryPanel({
     if (selectedActor) return `${selectedActor.type === "leader" ? "Kişi" : "Örgüt"}: ${selectedActor.name}`;
     return null;
   }, [selectedActor, selectedEvent]);
+
+  const loadEventForEditing = useCallback(
+    (event: DbEvent) => {
+      const relatedIds = event.relatedIds ?? [];
+      const relatedActors = db.actors.filter((actor) => relatedIds.includes(actor.id));
+      setFileName(event.title);
+      setDate(event.date);
+      setEventText(event.analysis);
+      setPeopleRaw(
+        relatedActors
+          .filter((actor) => actor.type === "leader")
+          .map((actor) => actor.name)
+          .join("\n"),
+      );
+      setOrgsRaw(
+        relatedActors
+          .filter((actor) => actor.type === "org")
+          .map((actor) => actor.name)
+          .join("\n"),
+      );
+      setPlaceQuery("");
+      setPicked({ lng: event.lngLat.lng, lat: event.lngLat.lat, label: event.title });
+      setGeoError(null);
+      setSaveError(null);
+      setOpen(true);
+    },
+    [db.actors],
+  );
 
   const resolvePlaceToCoords = useCallback(async () => {
     const q = placeQuery.trim();
@@ -120,15 +145,19 @@ export function DataEntryPanel({
     const coords = await resolvePlaceToCoords();
     if (!coords) return;
 
+    const editingEvent = selectedEvent;
+    const oldRelatedIds = new Set(editingEvent?.relatedIds ?? []);
+    const availableActorIds = new Set(db.actors.filter((a) => !oldRelatedIds.has(a.id)).map((a) => a.id));
+    const availableEventIds = new Set(db.events.filter((e) => e.id !== editingEvent?.id).map((e) => e.id));
     const title = fileName.trim() || "Dosya";
     const eventIdBase = toId(`${date || "tarih"}-${title}`) || "event";
-    const eventId = uniqueId(existingEventIds, eventIdBase);
+    const eventId = editingEvent?.id ?? uniqueId(availableEventIds, eventIdBase);
 
     const makeActors = (names: string[], type: DbActorType): DbActor[] => {
       return names.map((name) => {
         const base = toId(name) || (type === "leader" ? "person" : "org");
-        const id = uniqueId(existingActorIds, base);
-        existingActorIds.add(id);
+        const id = uniqueId(availableActorIds, base);
+        availableActorIds.add(id);
         return {
           id,
           type,
@@ -158,8 +187,8 @@ export function DataEntryPanel({
 
     const next: LocalDb = {
       ...db,
-      actors: [...db.actors, ...createdActors],
-      events: [...db.events, ev],
+      actors: [...db.actors.filter((actor) => !oldRelatedIds.has(actor.id)), ...createdActors],
+      events: editingEvent ? db.events.map((event) => (event.id === editingEvent.id ? ev : event)) : [...db.events, ev],
     };
 
     setIsSaving(true);
@@ -176,18 +205,19 @@ export function DataEntryPanel({
       setEventText("");
       setPicked(null);
       setGeoError(null);
+      setSelectedEventId("");
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Dosya kaydedilemedi");
     } finally {
       setIsSaving(false);
     }
-  }, [db, date, eventText, existingActorIds, existingEventIds, fileName, onChangeDb, onFlyTo, orgsRaw, peopleRaw, resolvePlaceToCoords]);
+  }, [db, date, eventText, fileName, onChangeDb, onFlyTo, orgsRaw, peopleRaw, resolvePlaceToCoords, selectedEvent]);
 
   return (
     <aside className="pointer-events-auto absolute right-4 bottom-28 w-[420px] overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl">
       <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-white/90">Dosya ekle</div>
+          <div className="truncate text-sm font-semibold text-white/90">{selectedEvent ? "Dosya düzenle" : "Dosya ekle"}</div>
           <div className="mt-0.5 truncate text-xs text-white/55">{selectedHeader ?? "Manuel veri girişi"}</div>
         </div>
         <div className="flex items-center gap-2">
@@ -199,6 +229,7 @@ export function DataEntryPanel({
               setSelectedActorId("");
               const ev = db.events.find((x) => x.id === id);
               if (!ev) return;
+              loadEventForEditing(ev);
               onFlyTo?.(ev.lngLat.lng, ev.lngLat.lat);
               onPickLocation?.(ev.lngLat.lng, ev.lngLat.lat, ev.title);
               onSelectItem?.("event", ev.id);
@@ -352,7 +383,7 @@ export function DataEntryPanel({
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-500/20 px-3 py-2 text-xs text-emerald-50 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Save className="h-4 w-4" />
-                {isSaving ? "Kaydediliyor..." : "Kaydet"}
+                {isSaving ? "Kaydediliyor..." : selectedEvent ? "Değişiklikleri kaydet" : "Kaydet"}
               </button>
             </div>
           </div>

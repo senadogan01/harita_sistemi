@@ -221,8 +221,17 @@ export function useSupabaseDb() {
       const nextActors = next.actors.map((actor) => actorToRow(actor, user.id));
       const nextEvents = next.events.map((event) => eventToRow(event, user.id));
       const nextCountries = next.countries.map((country) => countryToRow(country, user.id));
+      const nextActorIds = new Set(next.actors.map((actor) => actor.id));
+      const nextEventIds = new Set(next.events.map((event) => event.id));
+      const nextCountryIds = new Set(next.countries.map((country) => country.id));
+      const removedActorIds = db.actors.filter((actor) => !nextActorIds.has(actor.id)).map((actor) => actor.id);
+      const removedEventIds = db.events.filter((event) => !nextEventIds.has(event.id)).map((event) => event.id);
+      const removedCountryIds = db.countries.filter((country) => !nextCountryIds.has(country.id)).map((country) => country.id);
 
       const results = await Promise.all([
+        removedActorIds.length > 0 ? supabase.from("actors").delete().in("id", removedActorIds).eq("user_id", user.id) : Promise.resolve({ error: null }),
+        removedEventIds.length > 0 ? supabase.from("events").delete().in("id", removedEventIds).eq("user_id", user.id) : Promise.resolve({ error: null }),
+        removedCountryIds.length > 0 ? supabase.from("countries").delete().in("id", removedCountryIds).eq("user_id", user.id) : Promise.resolve({ error: null }),
         nextActors.length > 0 ? supabase.from("actors").upsert(nextActors, { onConflict: "id,user_id" }) : Promise.resolve({ error: null }),
         nextEvents.length > 0 ? supabase.from("events").upsert(nextEvents, { onConflict: "id,user_id" }) : Promise.resolve({ error: null }),
         nextCountries.length > 0 ? supabase.from("countries").upsert(nextCountries, { onConflict: "id,user_id" }) : Promise.resolve({ error: null }),
@@ -237,7 +246,7 @@ export function useSupabaseDb() {
       setDbState(next);
       void loadDb();
     },
-    [loadDb, user],
+    [db.actors, db.countries, db.events, loadDb, user],
   );
 
   const signOut = useCallback(async () => {
