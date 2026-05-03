@@ -213,7 +213,9 @@ export function useSupabaseDb() {
 
   const setDb = useCallback(
     async (next: LocalDb) => {
-      if (!user) return;
+      if (!user) {
+        throw new Error("Dosya kaydetmek için giriş yapmalısın");
+      }
       setError(null);
 
       const nextActors = next.actors.map((actor) => actorToRow(actor, user.id));
